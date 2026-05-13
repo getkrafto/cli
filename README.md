@@ -3,7 +3,7 @@
 > **Visual editor for live web products.**
 > A bird's-eye canvas of your actual app pages, with AI-powered edits.
 
-**Status: pre-alpha placeholder.** This npm package reserves the name. The real CLI ships in a later release.
+**Status: early preview.** First public release of the Yondo CLI. Full canvas and onboarding features ship in upcoming versions — track progress on GitHub.
 
 ---
 
@@ -30,13 +30,13 @@ Not codegen-from-scratch like v0 or Bolt — **edits on top of your existing pro
 4. **Chat** — three scopes: edit the whole canvas (new pages, new sections), edit a single page, iterate on a generated mock
 5. **PR flow** — every batch of edits opens a pull request your team reviews on GitHub
 
-## Try the placeholder
+## Try it
 
 ```bash
 npx yondo
 ```
 
-You will see this banner and a link back to the repo. That is currently the entire feature set.
+In this preview release the CLI prints a status banner and a link to the repository. The interactive `yondo init` flow lands in an upcoming version.
 
 ## Build status
 
@@ -53,6 +53,6 @@ Open an issue on [github.com/cranch42/yondo](https://github.com/cranch42/yondo) 
 
 ## License
 
-Source-available under the [Functional Source License, Version 1.1 (Apache 2.0 Future License)](./LICENSE) — the same license Sentry uses.
+Source-available under the [Functional Source License, Version 1.1 (Apache 2.0 Future License)](./LICENSE).
 
 Free for any use except a Competing Use (a commercial product or service that substitutes for Yondo or offers substantially the same functionality). Two years after each release, every version converts automatically to Apache 2.0. See `LICENSE` for the exact terms.

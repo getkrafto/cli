@@ -16,7 +16,7 @@ ${CYAN}${BOLD}  |_|  \\___/|_| \\_|____/ \\___/${RESET}
 `;
 
 const tagline = `${MAGENTA}${BOLD}  Visual editor for live web products${RESET}`;
-const status = `${GRAY}  pre-alpha · placeholder release${RESET}`;
+const status = `${GRAY}  early preview${RESET}`;
 
 const body = `
 ${BOLD}What's coming:${RESET}
@@ -24,13 +24,13 @@ ${BOLD}What's coming:${RESET}
   ${DIM}·${RESET} AI-powered edits via Claude — no codegen-from-scratch
   ${DIM}·${RESET} one-command onboarding for any React / Next / Vite project
 
-${BOLD}Status:${RESET} this package reserves the name on npm.
-The actual CLI ships in a later release.
+${BOLD}Status:${RESET} this is an early preview of the Yondo CLI.
+The interactive ${BOLD}yondo init${RESET} flow ships in an upcoming release.
 
 ${BOLD}Follow the build:${RESET}
   ${CYAN}https://github.com/cranch42/yondo${RESET}
 
-${GRAY}Join the waitlist — open an issue on the repo above.${RESET}
+${GRAY}Subscribe for updates — open an issue on the repo above.${RESET}
 `;
 
 process.stdout.write(banner);
