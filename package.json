@@ -1,0 +1,37 @@
+{
+  "name": "yondo",
+  "version": "0.0.1",
+  "description": "Visual editor for live web products. A bird's-eye canvas of your actual app pages with AI-powered edits. Pre-alpha.",
+  "bin": {
+    "yondo": "./bin.js"
+  },
+  "files": [
+    "bin.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "canvas",
+    "visual-editor",
+    "design-tool",
+    "ai",
+    "claude",
+    "react",
+    "iframe",
+    "preview"
+  ],
+  "author": "cranch42",
+  "license": "SEE LICENSE IN LICENSE",
+  "_licenseNote": "FSL-1.1-Apache-2.0 (Functional Source License, Apache 2.0 Future License)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cranch42/yondo.git"
+  },
+  "homepage": "https://github.com/cranch42/yondo",
+  "bugs": {
+    "url": "https://github.com/cranch42/yondo/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
