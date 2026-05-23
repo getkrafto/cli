@@ -1,26 +1,26 @@
-# Yondo
+# Krafto
 
 > **Visual editor for live web products.**
 > A bird's-eye canvas of your actual app pages, with AI-powered edits.
 
-**Status: early preview.** First public release of the Yondo CLI. Full canvas and onboarding features ship in upcoming versions — track progress on GitHub.
+**Status: early preview.** First public release of the Krafto CLI. Full canvas and onboarding features ship in upcoming versions — track progress on GitHub.
 
 ---
 
 ## The idea in one sentence
 
-Connect your repository → Yondo adapts your project for embedding via a Claude-driven onboarding agent → designers open a single URL and see a live, navigable map of every page in your product, with a chat panel to make AI-driven edits in place.
+Connect your repository → Krafto adapts your project for embedding via a Claude-driven onboarding agent → designers open a single URL and see a live, navigable map of every page in your product, with a chat panel to make AI-driven edits in place.
 
 Not codegen-from-scratch like v0 or Bolt — **edits on top of your existing product**.
 
 ## How it differs
 
-| Tool | What it does | Where Yondo is different |
+| Tool | What it does | Where Krafto is different |
 |---|---|---|
-| v0, Bolt, Lovable | Generate new UI from a prompt | Yondo works with your already-built product |
-| Builder.io Visual Copilot | Visual editor over its own framework | Yondo adapts to any React / Next / Vite stack via an onboarding agent |
-| Storybook | Isolated components | Yondo shows full pages and product navigation |
-| Figma | Static design files | Yondo edits live code, not design mocks |
+| v0, Bolt, Lovable | Generate new UI from a prompt | Krafto works with your already-built product |
+| Builder.io Visual Copilot | Visual editor over its own framework | Krafto adapts to any React / Next / Vite stack via an onboarding agent |
+| Storybook | Isolated components | Krafto shows full pages and product navigation |
+| Figma | Static design files | Krafto edits live code, not design mocks |
 
 ## How it will work
 
@@ -33,17 +33,17 @@ Not codegen-from-scratch like v0 or Bolt — **edits on top of your existing pro
 ## Try it
 
 ```bash
-npx yondo
+npx krafto
 ```
 
-In this preview release the CLI prints a status banner and a link to the repository. The interactive `yondo init` flow lands in an upcoming version.
+In this preview release the CLI prints a status banner and a link to the repository. The interactive `krafto init` flow lands in an upcoming version.
 
 ## Build status
 
 | Stage | Status |
 |---|---|
 | Internal PoC (`canvas-sandbox`) | shipping |
-| Public CLI (`yondo init`) | in progress |
+| Public CLI (`krafto init`) | in progress |
 | Hosted SaaS | planned |
 | Self-hosted enterprise | planned |
 
@@ -55,4 +55,4 @@ Open an issue on [github.com/cranch42/yondo](https://github.com/cranch42/yondo) 
 
 Source-available under the [Functional Source License, Version 1.1 (Apache 2.0 Future License)](./LICENSE).
 
-Free for any use except a Competing Use (a commercial product or service that substitutes for Yondo or offers substantially the same functionality). Two years after each release, every version converts automatically to Apache 2.0. See `LICENSE` for the exact terms.
+Free for any use except a Competing Use (a commercial product or service that substitutes for Krafto or offers substantially the same functionality). Two years after each release, every version converts automatically to Apache 2.0. See `LICENSE` for the exact terms.

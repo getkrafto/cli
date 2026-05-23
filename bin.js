@@ -8,11 +8,11 @@ const MAGENTA = '\x1b[35m';
 const GRAY = '\x1b[90m';
 
 const banner = `
-${CYAN}${BOLD}__   __ ___  _   _ ____   ___${RESET}
-${CYAN}${BOLD}\\ \\ / // _ \\| \\ | |  _ \\ / _ \\${RESET}
-${CYAN}${BOLD} \\ V /| | | |  \\| | | | | | | |${RESET}
-${CYAN}${BOLD}  | | | |_| | |\\  | |_| | |_| |${RESET}
-${CYAN}${BOLD}  |_|  \\___/|_| \\_|____/ \\___/${RESET}
+${CYAN}${BOLD}  _  ______      _    _____ _____ ___  ${RESET}
+${CYAN}${BOLD} | |/ /  _ \\    / \\  |  ___|_   _/ _ \\ ${RESET}
+${CYAN}${BOLD} | ' /| |_) |  / _ \\ | |_    | || | | |${RESET}
+${CYAN}${BOLD} | . \\|  _ <  / ___ \\|  _|   | || |_| |${RESET}
+${CYAN}${BOLD} |_|\\_\\_| \\_\\/_/   \\_\\_|     |_| \\___/ ${RESET}
 `;
 
 const tagline = `${MAGENTA}${BOLD}  Visual editor for live web products${RESET}`;
@@ -24,8 +24,8 @@ ${BOLD}What's coming:${RESET}
   ${DIM}·${RESET} AI-powered edits via Claude — no codegen-from-scratch
   ${DIM}·${RESET} one-command onboarding for any React / Next / Vite project
 
-${BOLD}Status:${RESET} this is an early preview of the Yondo CLI.
-The interactive ${BOLD}yondo init${RESET} flow ships in an upcoming release.
+${BOLD}Status:${RESET} this is an early preview of the Krafto CLI.
+The interactive ${BOLD}krafto init${RESET} flow ships in an upcoming release.
 
 ${BOLD}Follow the build:${RESET}
   ${CYAN}https://github.com/cranch42/yondo${RESET}
