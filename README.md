@@ -49,7 +49,7 @@ In this preview release the CLI prints a status banner and a link to the reposit
 
 ## Get notified
 
-Open an issue on [github.com/cranch42/yondo](https://github.com/cranch42/yondo) to join the waitlist.
+Open an issue on [github.com/getkrafto/cli](https://github.com/getkrafto/cli) to join the waitlist.
 
 ## License
 

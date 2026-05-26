@@ -8,11 +8,12 @@ const MAGENTA = '\x1b[35m';
 const GRAY = '\x1b[90m';
 
 const banner = `
-${CYAN}${BOLD}  _  ______      _    _____ _____ ___  ${RESET}
-${CYAN}${BOLD} | |/ /  _ \\    / \\  |  ___|_   _/ _ \\ ${RESET}
-${CYAN}${BOLD} | ' /| |_) |  / _ \\ | |_    | || | | |${RESET}
-${CYAN}${BOLD} | . \\|  _ <  / ___ \\|  _|   | || |_| |${RESET}
-${CYAN}${BOLD} |_|\\_\\_| \\_\\/_/   \\_\\_|     |_| \\___/ ${RESET}
+${CYAN}${BOLD}  ██╗  ██╗██████╗  █████╗ ███████╗████████╗ ██████╗ ${RESET}
+${CYAN}${BOLD}  ██║ ██╔╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗${RESET}
+${CYAN}${BOLD}  █████╔╝ ██████╔╝███████║█████╗     ██║   ██║   ██║${RESET}
+${CYAN}${BOLD}  ██╔═██╗ ██╔══██╗██╔══██║██╔══╝     ██║   ██║   ██║${RESET}
+${CYAN}${BOLD}  ██║  ██╗██║  ██║██║  ██║██║        ██║   ╚██████╔╝${RESET}
+${CYAN}${BOLD}  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝    ╚═════╝ ${RESET}
 `;
 
 const tagline = `${MAGENTA}${BOLD}  Visual editor for live web products${RESET}`;
@@ -28,7 +29,7 @@ ${BOLD}Status:${RESET} this is an early preview of the Krafto CLI.
 The interactive ${BOLD}krafto init${RESET} flow ships in an upcoming release.
 
 ${BOLD}Follow the build:${RESET}
-  ${CYAN}https://github.com/cranch42/yondo${RESET}
+  ${CYAN}https://github.com/getkrafto/cli${RESET}
 
 ${GRAY}Subscribe for updates — open an issue on the repo above.${RESET}
 `;

@@ -1,9 +1,9 @@
 {
   "name": "krafto",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Visual editor for live web products. A bird's-eye canvas of your actual app pages with AI-powered edits.",
   "bin": {
-    "krafto": "./bin.js"
+    "krafto": "bin.js"
   },
   "files": [
     "bin.js",
@@ -20,15 +20,15 @@
     "iframe",
     "preview"
   ],
-  "author": "cranch42",
+  "author": "krafto",
   "license": "FSL-1.1-Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cranch42/yondo.git"
+    "url": "git+https://github.com/getkrafto/cli.git"
   },
-  "homepage": "https://github.com/cranch42/yondo",
+  "homepage": "https://github.com/getkrafto/cli",
   "bugs": {
-    "url": "https://github.com/cranch42/yondo/issues"
+    "url": "https://github.com/getkrafto/cli/issues"
   },
   "engines": {
     "node": ">=18"
