@@ -1,6 +1,6 @@
 {
   "name": "krafto",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Visual editor for live web products. A bird's-eye canvas of your actual app pages with AI-powered edits.",
   "bin": {
     "krafto": "bin.js"
