@@ -1,34 +1,10 @@
 # Krafto
 
-> **Visual editor for live web products.**
-> A bird's-eye canvas of your actual app pages, with AI-powered edits.
+> Visual editor for your existing React codebase.
 
-**Status: early preview.** First public release of the Krafto CLI. Full canvas and onboarding features ship in upcoming versions — track progress on GitHub.
+Click any element in your live app to edit it, or ask the AI agent. Changes land in your source files as real diffs.
 
----
-
-## The idea in one sentence
-
-Connect your repository → Krafto adapts your project for embedding via a Claude-driven onboarding agent → designers open a single URL and see a live, navigable map of every page in your product, with a chat panel to make AI-driven edits in place.
-
-Not codegen-from-scratch like v0 or Bolt — **edits on top of your existing product**.
-
-## How it differs
-
-| Tool | What it does | Where Krafto is different |
-|---|---|---|
-| v0, Bolt, Lovable | Generate new UI from a prompt | Krafto works with your already-built product |
-| Builder.io Visual Copilot | Visual editor over its own framework | Krafto adapts to any React / Next / Vite stack via an onboarding agent |
-| Storybook | Isolated components | Krafto shows full pages and product navigation |
-| Figma | Static design files | Krafto edits live code, not design mocks |
-
-## How it will work
-
-1. **Connect** your GitHub repo
-2. **Onboarding agent** (Claude) opens a single PR adapting your project for iframe embedding — auth bridge, CSP whitelist, route map. All changes feature-flagged; production builds untouched.
-3. **Canvas** — a zoomable map of every page in your product, rendered as live iframes
-4. **Chat** — three scopes: edit the whole canvas (new pages, new sections), edit a single page, iterate on a generated mock
-5. **PR flow** — every batch of edits opens a pull request your team reviews on GitHub
+**Status: early preview.** This release of the `krafto` CLI is a placeholder while the interactive `krafto init` flow ships.
 
 ## Try it
 
@@ -36,23 +12,11 @@ Not codegen-from-scratch like v0 or Bolt — **edits on top of your existing pro
 npx krafto
 ```
 
-In this preview release the CLI prints a status banner and a link to the repository. The interactive `krafto init` flow lands in an upcoming version.
+## Links
 
-## Build status
-
-| Stage | Status |
-|---|---|
-| Internal PoC (`canvas-sandbox`) | shipping |
-| Public CLI (`krafto init`) | in progress |
-| Hosted SaaS | planned |
-| Self-hosted enterprise | planned |
-
-## Get notified
-
-Open an issue on [github.com/getkrafto/cli](https://github.com/getkrafto/cli) to join the waitlist.
+- Follow the build: [github.com/getkrafto/cli](https://github.com/getkrafto/cli)
+- Contact: [hello@krafto.dev](mailto:hello@krafto.dev)
 
 ## License
 
-Source-available under the [Functional Source License, Version 1.1 (Apache 2.0 Future License)](./LICENSE).
-
-Free for any use except a Competing Use (a commercial product or service that substitutes for Krafto or offers substantially the same functionality). Two years after each release, every version converts automatically to Apache 2.0. See `LICENSE` for the exact terms.
+[Apache License 2.0](./LICENSE). Copyright © Okto Labs LLP.

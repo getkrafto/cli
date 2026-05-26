@@ -1,7 +1,7 @@
 {
   "name": "krafto",
   "version": "0.0.4",
-  "description": "Visual editor for live web products. A bird's-eye canvas of your actual app pages with AI-powered edits.",
+  "description": "Visual editor for your existing React codebase. Click any element to edit it, or ask the AI agent — changes land in your source files as real diffs.",
   "bin": {
     "krafto": "bin.js"
   },
@@ -21,7 +21,7 @@
     "preview"
   ],
   "author": "krafto",
-  "license": "FSL-1.1-Apache-2.0",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/getkrafto/cli.git"
