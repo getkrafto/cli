@@ -1,6 +1,6 @@
 {
   "name": "krafto",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Visual editor for your existing React codebase. Click any element to edit it, or ask the AI agent — changes land in your source files as real diffs.",
   "bin": {
     "krafto": "bin.js"
