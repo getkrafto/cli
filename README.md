@@ -15,7 +15,7 @@ npx krafto
 ## Links
 
 - Follow the build: [github.com/getkrafto/cli](https://github.com/getkrafto/cli)
-- Contact: [hello@krafto.dev](mailto:hello@krafto.dev)
+- Contact: [hello@krafto.ai](mailto:hello@krafto.ai)
 
 ## License
 
