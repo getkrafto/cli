@@ -34,7 +34,7 @@
   "engines": {
     "node": ">=18"
   },
-  "devDependencies": {
+  "dependencies": {
     "ws": "^8.18.0"
   }
 }

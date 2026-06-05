@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runDev } from './commands/dev.js';
 import { runInit } from './commands/init.js';
 import { c } from './ui.js';
 
@@ -18,7 +19,7 @@ switch (cmd) {
 		await runInit(process.cwd());
 		break;
 	case 'dev':
-		console.log(`${c.cyan('krafto')} dev — agent daemon lands in the next build`);
+		await runDev(process.cwd());
 		break;
 	case '--version':
 	case '-v':
