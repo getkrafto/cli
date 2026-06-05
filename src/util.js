@@ -119,18 +119,23 @@ export function appendGitignore(cwd, line) {
 
 // --- net -------------------------------------------------------------------
 
-export function isPortListening(port) {
-	return new Promise((resolve) => {
-		const socket = net.createConnection({ port, host: '127.0.0.1' });
-		socket.setTimeout(1000);
-		socket.on('connect', () => {
-			socket.destroy();
-			resolve(true);
+export async function isPortListening(port) {
+	// Check both loopbacks: Vite binds `localhost`, which is ::1-only on modern
+	// macOS/Node; Next.js binds 0.0.0.0 (IPv4). Either one counts as "up".
+	const probe = (host) =>
+		new Promise((resolve) => {
+			const socket = net.createConnection({ port, host });
+			socket.setTimeout(1000);
+			socket.on('connect', () => {
+				socket.destroy();
+				resolve(true);
+			});
+			socket.on('error', () => resolve(false));
+			socket.on('timeout', () => {
+				socket.destroy();
+				resolve(false);
+			});
 		});
-		socket.on('error', () => resolve(false));
-		socket.on('timeout', () => {
-			socket.destroy();
-			resolve(false);
-		});
-	});
+	const [v4, v6] = await Promise.all([probe('127.0.0.1'), probe('::1')]);
+	return v4 || v6;
 }
