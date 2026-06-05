@@ -42,6 +42,21 @@ export function isCleanTree(cwd) {
 	}
 }
 
+/** True if the tree has changes beyond the paths krafto itself touches. */
+export function hasChangesBeyond(cwd, allowed) {
+	try {
+		return git(cwd, ['status', '--porcelain'])
+			.split('\n')
+			.filter(Boolean)
+			.some((line) => {
+				const path = line.slice(3); // strip the `XY ` status prefix
+				return !allowed.some((a) => path === a || path.startsWith(a));
+			});
+	} catch {
+		return false;
+	}
+}
+
 export function currentBranch(cwd) {
 	try {
 		return git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']) || null;

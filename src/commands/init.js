@@ -1,8 +1,9 @@
 /**
  * `krafto init` — connect a project to krafto.
  *
- * detect → clean-tree check → prompts → connect handshake (browser confirm) →
- * write .krafto/config.json + secrets.env → onboarding commit.
+ * detect → prompts → connect handshake (browser confirm) → write
+ * .krafto/config.json + secrets.env → onboarding commit (skipped when the tree
+ * has the user's own uncommitted changes — never sweep their work into ours).
  *
  * Codemod (data-krafto-id) is the editing layer and lands later; this is enough
  * to view the project in the editor.
@@ -34,12 +35,6 @@ export async function runInit(cwd) {
 	step(`package manager  ${detected.packageManager}`);
 	step(`dev command      ${detected.devCommand}`);
 	step(`dev port         ${detected.devPort}`);
-
-	// Codemod (later) rewrites source — keep the tree clean so the diff is obvious.
-	if (util.isGitRepo(cwd) && !util.isCleanTree(cwd)) {
-		error('working tree has uncommitted changes — commit or stash first, then re-run');
-		process.exit(1);
-	}
 
 	console.log();
 	const name = await util.prompt('project name', detected.name);
@@ -90,7 +85,7 @@ export async function runInit(cwd) {
 
 	console.log();
 	info(`connected ${c.green('✓')} — ${c.bold(name)}`);
-	step('wrote .krafto/config.json (committed) + .krafto/secrets.env (gitignored)');
+	step('wrote .krafto/config.json + .krafto/secrets.env (gitignored)');
 
 	if (detected.framework === 'next') {
 		console.log();
@@ -99,7 +94,14 @@ export async function runInit(cwd) {
 	}
 
 	if (util.isGitRepo(cwd)) {
-		if (util.commitOnboarding(cwd)) step('committed onboarding (config) on the current branch');
+		// Auto-commit only when the tree has no changes of the user's own —
+		// a plain `git commit` would sweep their staged work into our commit.
+		if (util.hasChangesBeyond(cwd, ['.krafto', '.gitignore'])) {
+			step('your tree has uncommitted changes — skipped the auto-commit;');
+			step(`commit ${c.bold('.krafto/config.json')} + ${c.bold('.gitignore')} together with your work`);
+		} else if (util.commitOnboarding(cwd)) {
+			step('committed onboarding (config) on the current branch');
+		}
 	}
 
 	console.log();
