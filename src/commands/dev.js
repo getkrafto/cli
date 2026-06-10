@@ -9,7 +9,8 @@
  * krafto/<id> with its own dev server — see ../sessions.js. Proxied traffic
  * carrying a sessionId routes to that session's port.
  *
- * Edits (type:'edit') are the editing layer — logged but not yet applied.
+ * Edits (type:'edit') are applied in the session's worktree via ts-morph
+ * (../edits.js) and auto-committed to the session branch.
  */
 
 import { spawn } from 'node:child_process';
@@ -17,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
+import { applyEdit } from '../edits.js';
 import { createSessionManager } from '../sessions.js';
 import { error, info, step } from '../ui.js';
 import * as util from '../util.js';
@@ -165,9 +167,7 @@ function connect(cwd, config, token) {
 				return;
 			}
 			case 'edit':
-				// Editing layer (week 3): grep data-krafto-id → ts-morph → write file.
-				step(`edit ${msg.editId} received (apply lands with the editing layer)`);
-				return;
+				return void handleEdit(send, sessions, msg);
 			default:
 				return;
 		}
@@ -185,6 +185,22 @@ function connect(cwd, config, token) {
 	});
 
 	return ws;
+}
+
+async function handleEdit(send, sessions, msg) {
+	const ack = (payload) =>
+		send({ type: 'edit_ack', editId: msg.editId, sessionId: msg.sessionId, ...payload });
+	const dir = msg.sessionId ? sessions.dirFor(msg.sessionId) : null;
+	if (!dir) return ack({ ok: false, error: 'session is not running on the agent' });
+	try {
+		const result = await applyEdit(dir, msg);
+		if (result.ok) step(`edit ${msg.editId}: ${msg.change.kind} on ${msg.elementId} → ${result.file}`);
+		else error(`edit ${msg.editId} failed: ${result.error}`);
+		ack(result.ok ? { ok: true } : { ok: false, error: result.error });
+	} catch (err) {
+		error(`edit ${msg.editId} failed: ${err.message}`);
+		ack({ ok: false, error: err.message.slice(0, 300) });
+	}
 }
 
 function sendUnready(send, msg) {
