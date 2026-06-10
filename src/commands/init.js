@@ -2,13 +2,16 @@
  * `krafto init` — connect a project to krafto.
  *
  * detect → prompts → connect handshake (browser confirm) → write
- * .krafto/config.json + secrets.env → onboarding commit (skipped when the tree
- * has the user's own uncommitted changes — never sweep their work into ours).
+ * .krafto/config.json + secrets.env → codemod (tag JSX with data-krafto-id,
+ * own commit) → onboarding commit (skipped when the tree has the user's own
+ * uncommitted changes — never sweep their work into ours).
  *
- * Codemod (data-krafto-id) is the editing layer and lands later; this is enough
- * to view the project in the editor.
+ * The codemod is the only step that rewrites the user's sources, so it is the
+ * only step with a clean check — scoped to tracked .tsx/.jsx, verified before
+ * the browser step so a dirty tree fails before login.
  */
 
+import { commitCodemod, dirtySourceFiles, runCodemod } from '../codemod.js';
 import { detectProject, DetectError } from '../detect.js';
 import { c, error, info, step } from '../ui.js';
 import * as util from '../util.js';
@@ -35,6 +38,19 @@ export async function runInit(cwd) {
 	step(`package manager  ${detected.packageManager}`);
 	step(`dev command      ${detected.devCommand}`);
 	step(`dev port         ${detected.devPort}`);
+
+	// The codemod rewrites .tsx/.jsx — refuse while they carry uncommitted
+	// changes (checked before the browser step, so this fails before login).
+	if (util.isGitRepo(cwd)) {
+		const dirty = dirtySourceFiles(cwd);
+		if (dirty.length > 0) {
+			console.log();
+			error('these files have uncommitted changes, and init rewrites .tsx/.jsx (tagging):');
+			for (const f of dirty.slice(0, 10)) step(f);
+			error('commit or stash them, then re-run `krafto init`');
+			process.exit(1);
+		}
+	}
 
 	console.log();
 	const name = await util.prompt('project name', detected.name);
@@ -86,6 +102,21 @@ export async function runInit(cwd) {
 	console.log();
 	info(`connected ${c.green('✓')} — ${c.bold(name)}`);
 	step('wrote .krafto/config.json + .krafto/secrets.env (gitignored)');
+
+	if (util.isGitRepo(cwd)) {
+		console.log();
+		info('tagging elements for the editor (data-krafto-id)…');
+		const result = await runCodemod(cwd);
+		if (result.tagged === 0) {
+			step('nothing to tag — elements already carry ids');
+		} else if (commitCodemod(cwd, result.files)) {
+			step(`tagged ${result.tagged} elements in ${result.files.length} files, committed on the current branch`);
+		} else {
+			step(`tagged ${result.tagged} elements in ${result.files.length} files (commit failed — commit them yourself)`);
+		}
+	} else {
+		step('not a git repository — skipped element tagging (sessions need git anyway)');
+	}
 
 	if (detected.framework === 'next') {
 		console.log();
