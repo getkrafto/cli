@@ -173,7 +173,7 @@ function connect(cwd, config, token) {
 						reason: 'session not ready'
 					});
 				}
-				return openChannel(send, `ws://localhost:${port}`, channels, msg);
+				return openChannel(send, `ws://localhost:${port}`, channels, sessions, msg);
 			}
 			case 'ws_data': {
 				const ch = channels.get(msg.channelId);
@@ -187,6 +187,7 @@ function connect(cwd, config, token) {
 				const ch = channels.get(msg.channelId);
 				if (!ch) return;
 				channels.delete(msg.channelId);
+				if (ch.sessionId) sessions.channelClosed(ch.sessionId);
 				ch.ws.close(safeCloseCode(msg.code), msg.reason ?? '');
 				return;
 			}
@@ -216,6 +217,7 @@ async function handleEdit(send, sessions, msg) {
 		send({ type: 'edit_ack', editId: msg.editId, sessionId: msg.sessionId, ...payload });
 	const dir = msg.sessionId ? sessions.dirFor(msg.sessionId) : null;
 	if (!dir) return ack({ ok: false, error: 'session is not running on the agent' });
+	sessions.touch(msg.sessionId);
 	try {
 		const result = await applyEdit(dir, msg);
 		if (result.ok) step(`edit ${msg.editId}: ${msg.change.kind} on ${msg.elementId} → ${result.file}`);
@@ -272,10 +274,13 @@ async function handleHttp(send, httpBase, msg) {
 	}
 }
 
-function openChannel(send, wsBase, channels, msg) {
+function openChannel(send, wsBase, channels, sessions, msg) {
 	const target = new WebSocket(wsBase + msg.path, msg.protocols ?? []);
-	const ch = { ws: target, queue: [] };
+	const ch = { ws: target, queue: [], sessionId: msg.sessionId };
 	channels.set(msg.channelId, ch);
+	// An open tunnel into a session (HMR socket = an iframe is showing it)
+	// pins that session as active for the idle reaper.
+	if (ch.sessionId) sessions.channelOpened(ch.sessionId);
 
 	target.on('open', () => {
 		send({ type: 'ws_opened', channelId: msg.channelId, protocol: target.protocol || undefined });
@@ -292,6 +297,7 @@ function openChannel(send, wsBase, channels, msg) {
 	});
 	target.on('close', (code, reason) => {
 		if (!channels.delete(msg.channelId)) return;
+		if (ch.sessionId) sessions.channelClosed(ch.sessionId);
 		send({
 			type: 'ws_close',
 			channelId: msg.channelId,

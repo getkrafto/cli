@@ -20,9 +20,53 @@ import * as util from './util.js';
 
 const SESSION_READY_TIMEOUT_MS = 60_000;
 const LOG_TAIL_LINES = 25;
+// Idle reaping: a session dev server eats ~0.5GB RAM and real CPU; with tens
+// of sessions per project they pile up fast. A session with no open tunnel
+// channels (= no iframe looking at it) and no traffic for this long gets its
+// dev server stopped. The worktree and branch stay — the next editor open
+// re-ensures it in seconds.
+const SESSION_IDLE_MS = Number(process.env.KRAFTO_SESSION_IDLE_MS) || 10 * 60_000;
 
 export function createSessionManager({ cwd, config, send }) {
-	const entries = new Map(); // sessionId → { status, port, dir, child, logTail }
+	const entries = new Map(); // sessionId → { status, port, dir, child, logTail, lastUsed, channels }
+
+	const reaper = setInterval(reapIdle, Math.min(30_000, Math.max(1_000, SESSION_IDLE_MS / 3)));
+	reaper.unref(); // never keep the daemon alive just to reap
+
+	function reapIdle() {
+		const now = Date.now();
+		for (const [sessionId, entry] of entries) {
+			if (entry.status !== 'ready') continue; // never touch starting ones
+			if (entry.channels > 0) continue; // an open tunnel = an iframe is watching
+			if (now - entry.lastUsed < SESSION_IDLE_MS) continue;
+			entry.status = 'stopped';
+			entries.delete(sessionId);
+			if (entry.child) killTree(entry.child);
+			untrackGroup(sessionId);
+			step(`session ${sessionId} idle — dev server stopped (reopens on next editor visit)`);
+		}
+	}
+
+	/** Activity ping from proxied HTTP / edits — postpones idle reaping. */
+	function touch(sessionId) {
+		const entry = entries.get(sessionId);
+		if (entry) entry.lastUsed = Date.now();
+	}
+
+	/** Open WS tunnels (HMR etc.) pin the session as active while the iframe lives. */
+	function channelOpened(sessionId) {
+		const entry = entries.get(sessionId);
+		if (!entry) return;
+		entry.channels++;
+		entry.lastUsed = Date.now();
+	}
+
+	function channelClosed(sessionId) {
+		const entry = entries.get(sessionId);
+		if (!entry) return;
+		entry.channels = Math.max(0, entry.channels - 1);
+		entry.lastUsed = Date.now(); // grace period starts when the last tab leaves
+	}
 
 	function git(args, opts = {}) {
 		return execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'], ...opts })
@@ -44,7 +88,15 @@ export function createSessionManager({ cwd, config, send }) {
 			entries.delete(sessionId); // status 'error' → retry from scratch
 		}
 
-		const entry = { status: 'starting', port: null, dir: null, child: null, logTail: [] };
+		const entry = {
+			status: 'starting',
+			port: null,
+			dir: null,
+			child: null,
+			logTail: [],
+			lastUsed: Date.now(),
+			channels: 0
+		};
 		entries.set(sessionId, entry);
 		status(sessionId, { status: 'starting' });
 
@@ -199,7 +251,9 @@ export function createSessionManager({ cwd, config, send }) {
 
 	function portFor(sessionId) {
 		const entry = entries.get(sessionId);
-		return entry?.status === 'ready' ? entry.port : null;
+		if (entry?.status !== 'ready') return null;
+		entry.lastUsed = Date.now();
+		return entry.port;
 	}
 
 	function dirFor(sessionId) {
@@ -208,6 +262,7 @@ export function createSessionManager({ cwd, config, send }) {
 	}
 
 	function shutdown() {
+		clearInterval(reaper);
 		for (const entry of entries.values()) {
 			entry.status = 'stopped';
 			if (entry.child) killTree(entry.child);
@@ -215,7 +270,7 @@ export function createSessionManager({ cwd, config, send }) {
 		entries.clear();
 	}
 
-	return { ensure, portFor, dirFor, shutdown };
+	return { ensure, portFor, dirFor, touch, channelOpened, channelClosed, shutdown };
 }
 
 /** Kill the dev server's whole process group, not just the `<pm> run` wrapper. */
