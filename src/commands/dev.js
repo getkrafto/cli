@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 import { clearDaemonState, initDaemonState, reapOrphans, trackGroup } from '../daemonState.js';
 import { applyEdit } from '../edits.js';
+import { handleChangesRequest, handlePublish } from '../publish.js';
 import { createSessionManager, killTree } from '../sessions.js';
 import { error, info, step } from '../ui.js';
 import * as util from '../util.js';
@@ -193,6 +194,12 @@ function connect(cwd, config, token) {
 			}
 			case 'edit':
 				return void handleEdit(send, sessions, msg);
+			// Both run against the main checkout — the session branch is a normal
+			// local branch, no live dev server needed (works on dormant sessions).
+			case 'changes_request':
+				return void handleChangesRequest(cwd, send, msg);
+			case 'publish':
+				return void handlePublish(cwd, send, msg);
 			default:
 				return;
 		}

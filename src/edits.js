@@ -38,7 +38,7 @@ export async function applyEdit(dir, msg) {
 	if (error) return { ok: false, error };
 
 	sf.saveSync(); // the write is what triggers HMR
-	const commitSha = commitEdit(dir, file, elementId, change.kind);
+	const commitSha = commitEdit(dir, file, elementId, change.kind, msg.author);
 	return { ok: true, file, commitSha };
 }
 
@@ -111,12 +111,27 @@ function setText(el, value) {
  * tree and branches are never touched). Only the edited file, never -a.
  * Falls back to a krafto identity when the user has none configured.
  */
-function commitEdit(dir, file, elementId, kind) {
+function commitEdit(dir, file, elementId, kind, author) {
 	const git = (args) =>
 		execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
 	try {
 		git(['add', '--', file]);
-		const message = `krafto: ${kind} edit on ${elementId}`;
+		let message = `krafto: ${kind} edit on ${elementId}`;
+		// Sessions are shared: the edit may come from any member's browser while
+		// the committer is whoever runs the agent. Credit the actual editor
+		// (gateway-stamped identity) so the forge shows both — unless they are
+		// the same person.
+		if (author?.email) {
+			let committerEmail = null;
+			try {
+				committerEmail = git(['config', 'user.email']);
+			} catch {
+				/* none configured — the krafto identity fallback below kicks in */
+			}
+			if (committerEmail !== author.email) {
+				message += `\n\nCo-authored-by: ${author.name || author.email} <${author.email}>`;
+			}
+		}
 		try {
 			git(['commit', '-m', message, '--', file]);
 		} catch {
