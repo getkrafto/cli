@@ -11,9 +11,10 @@
  */
 
 import { execFileSync, spawn } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, appendFileSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import net from 'node:net';
 import { join } from 'node:path';
+import { trackGroup, untrackGroup } from './daemonState.js';
 import { error, info, step } from './ui.js';
 import * as util from './util.js';
 
@@ -89,7 +90,9 @@ export function createSessionManager({ cwd, config, send }) {
 	 */
 	function ensureWorktree(sessionId, branch, requestedBase, forkFromBranch) {
 		if (!util.isGitRepo(cwd)) throw new Error('not a git repository — sessions need git');
-		excludeWorktreesFromGit();
+		// Worktrees live inside the repo — keep them out of `git status` without
+		// touching the user's .gitignore.
+		util.excludeFromGitStatus(cwd, ['.krafto/worktrees/', '.krafto/daemon.json']);
 		git(['worktree', 'prune']); // drop stale registrations (deleted dirs)
 
 		const dir = join(cwd, '.krafto', 'worktrees', sessionId);
@@ -117,24 +120,6 @@ export function createSessionManager({ cwd, config, send }) {
 			return true;
 		} catch {
 			return false;
-		}
-	}
-
-	/**
-	 * Worktrees live inside the repo — keep them out of `git status` without
-	 * touching the user's .gitignore: .git/info/exclude is repo-local and
-	 * invisible to the user's tree.
-	 */
-	function excludeWorktreesFromGit() {
-		try {
-			const gitDir = git(['rev-parse', '--git-common-dir']);
-			const excludePath = join(gitDir.startsWith('/') ? gitDir : join(cwd, gitDir), 'info', 'exclude');
-			const line = '.krafto/worktrees/';
-			const current = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : '';
-			if (current.split('\n').some((l) => l.trim() === line)) return;
-			appendFileSync(excludePath, `${current && !current.endsWith('\n') ? '\n' : ''}${line}\n`);
-		} catch {
-			// Cosmetic only — worst case `git status` shows the worktrees dir.
 		}
 	}
 
@@ -186,6 +171,7 @@ export function createSessionManager({ cwd, config, send }) {
 			detached: true
 		});
 		entry.child = child;
+		trackGroup(sessionId, child.pid); // reaped by the next `krafto dev` if we die hard
 
 		// Don't stream session dev-server output (several at once would flood the
 		// terminal) — keep a tail to print when something goes wrong.
@@ -199,6 +185,7 @@ export function createSessionManager({ cwd, config, send }) {
 		child.stderr.on('data', keepTail);
 
 		child.on('exit', (code) => {
+			untrackGroup(sessionId);
 			if (entry.status === 'stopped') return;
 			const wasReady = entry.status === 'ready';
 			entry.status = 'error';

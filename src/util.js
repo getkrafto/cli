@@ -75,6 +75,27 @@ export function gitRemote(cwd) {
 	}
 }
 
+/**
+ * Keep krafto's runtime artifacts out of `git status` without touching the
+ * user's .gitignore: .git/info/exclude is repo-local and invisible to them.
+ */
+export function excludeFromGitStatus(cwd, lines) {
+	try {
+		const gitDir = git(cwd, ['rev-parse', '--git-common-dir']);
+		const excludePath = join(gitDir.startsWith('/') ? gitDir : join(cwd, gitDir), 'info', 'exclude');
+		const current = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : '';
+		const present = new Set(current.split('\n').map((l) => l.trim()));
+		const missing = lines.filter((l) => !present.has(l));
+		if (missing.length === 0) return;
+		appendFileSync(
+			excludePath,
+			`${current && !current.endsWith('\n') ? '\n' : ''}${missing.join('\n')}\n`
+		);
+	} catch {
+		// Cosmetic only — worst case `git status` shows krafto's runtime files.
+	}
+}
+
 export function commitOnboarding(cwd) {
 	try {
 		git(cwd, ['add', '.krafto/config.json', '.gitignore']);

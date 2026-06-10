@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
+import { clearDaemonState, initDaemonState, reapOrphans, trackGroup } from '../daemonState.js';
 import { applyEdit } from '../edits.js';
 import { createSessionManager, killTree } from '../sessions.js';
 import { error, info, step } from '../ui.js';
@@ -52,16 +53,31 @@ export async function runDev(cwd) {
 		process.exit(1);
 	}
 
+	// A previous daemon that died hard (SIGKILL, crash) leaves its dev servers
+	// running and silently burning CPU/RAM. Reap them BEFORE probing devPort —
+	// an orphaned project server would otherwise get attached to as if healthy.
+	const reaped = reapOrphans(cwd);
+	if (reaped.length > 0) {
+		step(`cleaned up ${reaped.length} dev server(s) left by a previous run`);
+		await sleep(1000); // let the killed servers release their ports
+	}
+	initDaemonState(cwd);
+	util.excludeFromGitStatus(cwd, ['.krafto/worktrees/', '.krafto/daemon.json']);
+
 	const child = await ensureDevServer(cwd, config);
+	if (child) trackGroup('project', child.pid);
 	const { ws, sessions } = connect(cwd, config, token);
 
-	// All exits — Ctrl-C, SIGTERM, and the fail-loud process.exit(1) paths
-	// (gateway drop etc.) — must take the session dev servers and the project
-	// dev server (if we spawned it) down with the daemon. The 'exit' handler is
-	// the single funnel: kills are synchronous, so they're exit-safe.
+	// All exits — Ctrl-C, SIGTERM, closed terminal (SIGHUP) and the fail-loud
+	// process.exit(1) paths (gateway drop etc.) — must take the session dev
+	// servers and the project dev server (if we spawned it) down with the
+	// daemon. The 'exit' handler is the single funnel: kills are synchronous,
+	// so they're exit-safe. SIGKILL/hard crash is covered by reapOrphans on
+	// the next start instead.
 	process.on('exit', () => {
 		sessions.shutdown();
 		if (child) killTree(child);
+		clearDaemonState();
 	});
 	const shutdown = () => {
 		try {
@@ -73,6 +89,7 @@ export async function runDev(cwd) {
 	};
 	process.on('SIGINT', shutdown);
 	process.on('SIGTERM', shutdown);
+	process.on('SIGHUP', shutdown);
 }
 
 /** Attach to a dev server already on devPort, otherwise spawn `<pm> run dev`. */
