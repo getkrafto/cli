@@ -5,6 +5,10 @@
  * server, opens a WSS to the gateway, registers with the project token, and
  * tunnels proxied HTTP/WS to the local dev server. Grown from stub-agent.mjs.
  *
+ * Sessions (session_ensure): each session gets a git worktree on branch
+ * krafto/<id> with its own dev server — see ../sessions.js. Proxied traffic
+ * carrying a sessionId routes to that session's port.
+ *
  * Edits (type:'edit') are the editing layer — logged but not yet applied.
  */
 
@@ -13,6 +17,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
+import { createSessionManager } from '../sessions.js';
 import { error, info, step } from '../ui.js';
 import * as util from '../util.js';
 
@@ -46,15 +51,17 @@ export async function runDev(cwd) {
 	}
 
 	const child = await ensureDevServer(cwd, config);
-	const ws = connect(config, token);
+	const { ws, sessions } = connect(cwd, config, token);
 
-	// Ctrl-C: stop the daemon and the dev server we spawned (if any).
+	// Ctrl-C: stop the daemon, session dev servers, and the project dev server
+	// we spawned (if any).
 	const shutdown = () => {
 		try {
 			ws.close();
 		} catch {
 			/* already closing */
 		}
+		sessions.shutdown();
 		if (child) child.kill('SIGTERM');
 		process.exit(0);
 	};
@@ -92,14 +99,16 @@ async function ensureDevServer(cwd, config) {
 	process.exit(1);
 }
 
-function connect(config, token) {
+function connect(cwd, config, token) {
 	const version = readVersion();
-	const httpBase = `http://localhost:${config.devPort}`;
-	const wsBase = `ws://localhost:${config.devPort}`;
 	const channels = new Map(); // channelId → { ws, queue }
 
 	const ws = new WebSocket(config.gateway.replace(/\/agent$/, '') + '/agent');
 	const send = (msg) => ws.send(JSON.stringify(msg));
+	const sessions = createSessionManager({ cwd, config, send });
+	// Traffic without a sessionId goes to the project's own dev server; with one,
+	// to that session's dev server (null until session_ensure reported ready).
+	const portOf = (msg) => (msg.sessionId ? sessions.portFor(msg.sessionId) : config.devPort);
 	let heartbeat;
 
 	ws.on('open', () => {
@@ -116,12 +125,30 @@ function connect(config, token) {
 		}
 		switch (msg.type) {
 			case 'registered':
-				info(`agent online — proxying ${httpBase}. Open the editor from your dashboard.`);
+				info(
+					`agent online — proxying http://localhost:${config.devPort}. Open the editor from your dashboard.`
+				);
 				return;
-			case 'http_request':
-				return void handleHttp(send, httpBase, msg);
-			case 'ws_open':
-				return openChannel(send, wsBase, channels, msg);
+			case 'session_ensure':
+				return void sessions.ensure(msg);
+			case 'http_request': {
+				const port = portOf(msg);
+				if (!port) return sendUnready(send, msg);
+				return void handleHttp(send, `http://localhost:${port}`, msg);
+			}
+			case 'ws_open': {
+				const port = portOf(msg);
+				if (!port) {
+					// Gateway is expected to ensure the session before proxying into it.
+					return send({
+						type: 'ws_close',
+						channelId: msg.channelId,
+						code: 1000,
+						reason: 'session not ready'
+					});
+				}
+				return openChannel(send, `ws://localhost:${port}`, channels, msg);
+			}
 			case 'ws_data': {
 				const ch = channels.get(msg.channelId);
 				if (!ch) return;
@@ -158,6 +185,16 @@ function connect(config, token) {
 	});
 
 	return ws;
+}
+
+function sendUnready(send, msg) {
+	send({
+		type: 'http_response',
+		id: msg.id,
+		status: 503,
+		headers: { 'content-type': 'text/plain', 'retry-after': '2' },
+		body: Buffer.from('krafto agent: session dev server is not ready yet').toString('base64')
+	});
 }
 
 async function handleHttp(send, httpBase, msg) {
