@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseFlags } from './args.js';
+import { runAi } from './commands/ai.js';
 import { runDev } from './commands/dev.js';
 import { runInit } from './commands/init.js';
 import { runStatus } from './commands/status.js';
@@ -34,6 +35,18 @@ switch (cmd) {
 	case 'dev': {
 		const flags = parseFlags(rest, { detach: 'boolean' });
 		await runDev(process.cwd(), flags);
+		break;
+	}
+	case 'ai': {
+		// The prompt is the one positional argument: krafto ai "make it blue".
+		const positional = rest[0] && !rest[0].startsWith('--') ? rest[0] : null;
+		const flags = parseFlags(positional ? rest.slice(1) : rest, {
+			agent: 'string',
+			'read-only': 'boolean',
+			json: 'boolean'
+		});
+		if (flags.json) setJsonMode(true);
+		await runAi(process.cwd(), { ...flags, prompt: positional });
 		break;
 	}
 	case 'status': {
@@ -75,6 +88,7 @@ ${c.cyan(c.bold('  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝�
 	process.stdout.write(`  ${c.bold('Usage:')}\n`);
 	process.stdout.write(`    ${c.cyan('npx krafto init')}     ${c.gray('connect this project to krafto')}\n`);
 	process.stdout.write(`    ${c.cyan('npx krafto dev')}      ${c.gray('run the agent + your dev server (--detach for background)')}\n`);
+	process.stdout.write(`    ${c.cyan('npx krafto ai')}       ${c.gray('ask your own coding agent (Claude Code) to change this project')}\n`);
 	process.stdout.write(`    ${c.cyan('npx krafto status')}   ${c.gray('is the agent running? (--json for machines)')}\n`);
 	process.stdout.write(`    ${c.cyan('npx krafto stop')}     ${c.gray('stop the background agent')}\n\n`);
 }
