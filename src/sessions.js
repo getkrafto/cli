@@ -75,7 +75,7 @@ export function createSessionManager({ cwd, config, send }) {
 			throw new Error(`dev server didn't come up on :${port} within 60s`);
 		} catch (err) {
 			entry.status = 'error';
-			if (entry.child) entry.child.kill('SIGTERM');
+			if (entry.child) killTree(entry.child);
 			const tail = entry.logTail.length ? `\n${entry.logTail.join('\n')}` : '';
 			error(`session ${sessionId} failed: ${err.message}${tail}`);
 			status(sessionId, { status: 'error', error: String(err.message).slice(0, 500) });
@@ -176,10 +176,14 @@ export function createSessionManager({ cwd, config, send }) {
 		// one hardcoded in the script.
 		const portArgs =
 			config.framework === 'next' ? ['-p', String(port)] : ['--port', String(port), '--strictPort'];
+		// detached: own process group — killing only `<pm> run dev` orphans the
+		// actual server (its grandchild), which keeps squatting the port.
+		// Teardown signals the whole group (killTree).
 		const child = spawn(config.packageManager, ['run', 'dev', '--', ...portArgs], {
 			cwd: dir,
 			stdio: ['ignore', 'pipe', 'pipe'],
-			env: process.env
+			env: process.env,
+			detached: true
 		});
 		entry.child = child;
 
@@ -219,12 +223,21 @@ export function createSessionManager({ cwd, config, send }) {
 	function shutdown() {
 		for (const entry of entries.values()) {
 			entry.status = 'stopped';
-			if (entry.child) entry.child.kill('SIGTERM');
+			if (entry.child) killTree(entry.child);
 		}
 		entries.clear();
 	}
 
 	return { ensure, portFor, dirFor, shutdown };
+}
+
+/** Kill the dev server's whole process group, not just the `<pm> run` wrapper. */
+export function killTree(child, signal = 'SIGTERM') {
+	try {
+		process.kill(-child.pid, signal);
+	} catch {
+		child.kill(signal);
+	}
 }
 
 function freePort() {

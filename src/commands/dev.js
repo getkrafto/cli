@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 import { applyEdit } from '../edits.js';
-import { createSessionManager } from '../sessions.js';
+import { createSessionManager, killTree } from '../sessions.js';
 import { error, info, step } from '../ui.js';
 import * as util from '../util.js';
 
@@ -55,16 +55,20 @@ export async function runDev(cwd) {
 	const child = await ensureDevServer(cwd, config);
 	const { ws, sessions } = connect(cwd, config, token);
 
-	// Ctrl-C: stop the daemon, session dev servers, and the project dev server
-	// we spawned (if any).
+	// All exits — Ctrl-C, SIGTERM, and the fail-loud process.exit(1) paths
+	// (gateway drop etc.) — must take the session dev servers and the project
+	// dev server (if we spawned it) down with the daemon. The 'exit' handler is
+	// the single funnel: kills are synchronous, so they're exit-safe.
+	process.on('exit', () => {
+		sessions.shutdown();
+		if (child) killTree(child);
+	});
 	const shutdown = () => {
 		try {
 			ws.close();
 		} catch {
 			/* already closing */
 		}
-		sessions.shutdown();
-		if (child) child.kill('SIGTERM');
 		process.exit(0);
 	};
 	process.on('SIGINT', shutdown);
@@ -78,10 +82,13 @@ async function ensureDevServer(cwd, config) {
 		return null;
 	}
 	info(`starting dev server: ${config.packageManager} run dev`);
+	// detached: own process group, so shutdown can kill the real server and not
+	// just the `<pm> run` wrapper (an orphaned server keeps squatting the port).
 	const child = spawn(config.packageManager, ['run', 'dev'], {
 		cwd,
 		stdio: 'inherit',
-		env: process.env
+		env: process.env,
+		detached: true
 	});
 	child.on('exit', (code) => {
 		error(`dev server exited (${code}) — shutting down`);
@@ -97,7 +104,7 @@ async function ensureDevServer(cwd, config) {
 		await sleep(500);
 	}
 	error(`dev server didn't come up on :${config.devPort} within 60s`);
-	child.kill('SIGTERM');
+	killTree(child);
 	process.exit(1);
 }
 
@@ -184,7 +191,7 @@ function connect(cwd, config, token) {
 		process.exit(1);
 	});
 
-	return ws;
+	return { ws, sessions };
 }
 
 async function handleEdit(send, sessions, msg) {
