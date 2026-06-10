@@ -24,10 +24,30 @@ function save() {
 	writeFileSync(statePath(currentCwd), `${JSON.stringify(current, null, 2)}\n`);
 }
 
-export function initDaemonState(cwd) {
+export function initDaemonState(cwd, meta = {}) {
 	currentCwd = cwd;
-	current = { pid: process.pid, groups: {} };
+	current = { pid: process.pid, startedAt: new Date().toISOString(), gateway: 'connecting', ...meta, groups: {} };
 	save();
+}
+
+/** Record gateway connection progress ('connecting' → 'online') for `krafto status`. */
+export function setGatewayState(state) {
+	if (!current) return;
+	current.gateway = state;
+	save();
+}
+
+/** Read another process's daemon.json (for `status`/`stop`). Null when absent/corrupt. */
+export function readDaemonState(cwd) {
+	try {
+		return JSON.parse(readFileSync(statePath(cwd), 'utf8'));
+	} catch {
+		return null;
+	}
+}
+
+export function isPidAlive(pid) {
+	return isAlive(pid);
 }
 
 /** Register a spawned dev server's process group (child is its group leader). */

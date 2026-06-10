@@ -13,14 +13,35 @@ export const c = {
 	green: wrap(32)
 };
 
+// --json mode: stdout carries exactly one JSON object (emitJson), so the
+// human-readable progress moves to stderr — visible in logs, never parsed.
+let jsonMode = false;
+
+export function setJsonMode(on) {
+	jsonMode = on;
+}
+
+export function isJsonMode() {
+	return jsonMode;
+}
+
 export function info(msg) {
-	console.log(`${c.cyan('krafto')} ${msg}`);
+	const line = `${c.cyan('krafto')} ${msg}`;
+	if (jsonMode) console.error(line);
+	else console.log(line);
 }
 
 export function step(msg) {
-	console.log(`  ${c.gray('›')} ${msg}`);
+	const line = `  ${c.gray('›')} ${msg}`;
+	if (jsonMode) console.error(line);
+	else console.log(line);
 }
 
 export function error(msg) {
 	console.error(`${c.red('krafto')} ${msg}`);
+}
+
+/** The single machine-readable result of a --json invocation. */
+export function emitJson(obj) {
+	console.log(JSON.stringify(obj));
 }

@@ -1,26 +1,53 @@
 #!/usr/bin/env node
 /**
  * krafto CLI entry + argument router. Plain Node ≥18, no arg framework —
- * process.argv is enough for `init` / `dev`.
+ * process.argv + src/args.js is enough.
  */
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseFlags } from './args.js';
 import { runDev } from './commands/dev.js';
 import { runInit } from './commands/init.js';
-import { c } from './ui.js';
+import { runStatus } from './commands/status.js';
+import { runStop } from './commands/stop.js';
+import { c, setJsonMode } from './ui.js';
 
 const args = process.argv.slice(2);
 const cmd = args[0];
+const rest = args.slice(1);
 
 switch (cmd) {
-	case 'init':
-		await runInit(process.cwd());
+	case 'init': {
+		const flags = parseFlags(rest, {
+			name: 'string',
+			branch: 'string',
+			'connect-token': 'string',
+			yes: 'boolean',
+			json: 'boolean'
+		});
+		if (flags.json) setJsonMode(true);
+		await runInit(process.cwd(), flags);
 		break;
-	case 'dev':
-		await runDev(process.cwd());
+	}
+	case 'dev': {
+		const flags = parseFlags(rest, { detach: 'boolean' });
+		await runDev(process.cwd(), flags);
 		break;
+	}
+	case 'status': {
+		const flags = parseFlags(rest, { json: 'boolean' });
+		if (flags.json) setJsonMode(true);
+		await runStatus(process.cwd(), flags);
+		break;
+	}
+	case 'stop': {
+		const flags = parseFlags(rest, { json: 'boolean' });
+		if (flags.json) setJsonMode(true);
+		await runStop(process.cwd(), flags);
+		break;
+	}
 	case '--version':
 	case '-v':
 		console.log(version());
@@ -46,6 +73,8 @@ ${c.cyan(c.bold('  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝�
 	process.stdout.write(banner);
 	process.stdout.write(`${c.magenta(c.bold('  Visual editor for your existing React codebase'))}\n\n`);
 	process.stdout.write(`  ${c.bold('Usage:')}\n`);
-	process.stdout.write(`    ${c.cyan('npx krafto init')}   ${c.gray('connect this project to krafto')}\n`);
-	process.stdout.write(`    ${c.cyan('npx krafto dev')}    ${c.gray('run the agent + your dev server')}\n\n`);
+	process.stdout.write(`    ${c.cyan('npx krafto init')}     ${c.gray('connect this project to krafto')}\n`);
+	process.stdout.write(`    ${c.cyan('npx krafto dev')}      ${c.gray('run the agent + your dev server (--detach for background)')}\n`);
+	process.stdout.write(`    ${c.cyan('npx krafto status')}   ${c.gray('is the agent running? (--json for machines)')}\n`);
+	process.stdout.write(`    ${c.cyan('npx krafto stop')}     ${c.gray('stop the background agent')}\n\n`);
 }

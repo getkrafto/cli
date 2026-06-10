@@ -20,10 +20,30 @@ export async function prompt(question, def) {
 	}
 }
 
+export async function confirm(question, def = true) {
+	if (!process.stdin.isTTY) return def;
+	const rl = createInterface({ input: process.stdin, output: process.stdout });
+	try {
+		const answer = (await rl.question(`${question} ${def ? '(Y/n)' : '(y/N)'}: `)).trim().toLowerCase();
+		if (!answer) return def;
+		return answer === 'y' || answer === 'yes';
+	} finally {
+		rl.close();
+	}
+}
+
 // --- git -------------------------------------------------------------------
 
 function git(cwd, args) {
 	return execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+}
+
+// Untrimmed variant: porcelain status lines start with a significant space for
+// modified-unstaged files — git()'s trim() would eat it on the first line and
+// shift the `XY ` prefix parsing by one (hasChangesBeyond miscounted AGENTS.md
+// as a foreign change because of exactly this).
+function gitRaw(cwd, args) {
+	return execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
 }
 
 export function isGitRepo(cwd) {
@@ -45,7 +65,7 @@ export function isCleanTree(cwd) {
 /** True if the tree has changes beyond the paths krafto itself touches. */
 export function hasChangesBeyond(cwd, allowed) {
 	try {
-		return git(cwd, ['status', '--porcelain'])
+		return gitRaw(cwd, ['status', '--porcelain'])
 			.split('\n')
 			.filter(Boolean)
 			.some((line) => {
@@ -96,9 +116,9 @@ export function excludeFromGitStatus(cwd, lines) {
 	}
 }
 
-export function commitOnboarding(cwd) {
+export function commitOnboarding(cwd, agentsDoc = null) {
 	try {
-		git(cwd, ['add', '.krafto/config.json', '.gitignore']);
+		git(cwd, ['add', '.krafto/config.json', '.gitignore', ...(agentsDoc ? [agentsDoc] : [])]);
 		git(cwd, ['commit', '-m', 'krafto: onboarding (config)']);
 		return true;
 	} catch {
@@ -144,6 +164,33 @@ export function readSecrets(cwd) {
 		if (eq > 0) out[line.slice(0, eq).trim()] = line.slice(eq + 1).trim();
 	}
 	return out;
+}
+
+/**
+ * The krafto section init offers to add to the project's agents doc
+ * (AGENTS.md / CLAUDE.md) — how a coding agent runs the tool unattended.
+ * No em dashes on purpose: this lands in the user's repo.
+ */
+const AGENTS_DOC_SECTION = `## krafto
+
+This project is connected to krafto (https://krafto.ai), a visual editor for the running app.
+Commands an AI agent can run unattended:
+
+- \`npx krafto dev --detach\` starts the krafto agent in the background; logs go to \`.krafto/dev.log\`.
+- \`npx krafto status --json\` reports the agent state: \`running\`, \`gateway\` ("online" once connected), \`devPort\`, live \`sessions\`.
+- \`npx krafto stop\` stops the background agent and the dev servers it spawned.
+- \`npx krafto init --name <name> --branch <branch> --yes --json\` re-connects non-interactively. Set \`KRAFTO_CONNECT_TOKEN\` to skip the browser confirmation.
+
+Notes:
+- \`.krafto/config.json\` is committed configuration. \`.krafto/secrets.env\` is gitignored and holds credentials, never read or commit it.
+- Edits made in the krafto editor arrive as commits on \`krafto/<session-id>\` branches.
+`;
+
+export function appendAgentsDocSection(cwd, fileName) {
+	const p = join(cwd, fileName);
+	const current = existsSync(p) ? readFileSync(p, 'utf8') : '';
+	const sep = current ? (current.endsWith('\n\n') ? '' : current.endsWith('\n') ? '\n' : '\n\n') : '';
+	writeFileSync(p, `${current}${sep}${AGENTS_DOC_SECTION}`);
 }
 
 export function appendGitignore(cwd, line) {

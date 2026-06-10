@@ -14,11 +14,19 @@
  */
 
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { openSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
-import { clearDaemonState, initDaemonState, reapOrphans, trackGroup } from '../daemonState.js';
+import {
+	clearDaemonState,
+	initDaemonState,
+	isPidAlive,
+	readDaemonState,
+	reapOrphans,
+	setGatewayState,
+	trackGroup
+} from '../daemonState.js';
 import { applyEdit } from '../edits.js';
 import { handleChangesRequest, handlePublish } from '../publish.js';
 import { createSessionManager, killTree } from '../sessions.js';
@@ -38,7 +46,7 @@ const RESPONSE_DROP = new Set([
 ]);
 const REQUEST_DROP = new Set(['host', 'connection', 'keep-alive', 'transfer-encoding', 'upgrade']);
 
-export async function runDev(cwd) {
+export async function runDev(cwd, flags = {}) {
 	let config;
 	let secrets;
 	try {
@@ -54,6 +62,8 @@ export async function runDev(cwd) {
 		process.exit(1);
 	}
 
+	if (flags.detach) return runDetached(cwd);
+
 	// A previous daemon that died hard (SIGKILL, crash) leaves its dev servers
 	// running and silently burning CPU/RAM. Reap them BEFORE probing devPort —
 	// an orphaned project server would otherwise get attached to as if healthy.
@@ -63,7 +73,7 @@ export async function runDev(cwd) {
 		await sleep(1000); // let the killed servers release their ports
 	}
 	initDaemonState(cwd);
-	util.excludeFromGitStatus(cwd, ['.krafto/worktrees/', '.krafto/daemon.json']);
+	util.excludeFromGitStatus(cwd, ['.krafto/worktrees/', '.krafto/daemon.json', '.krafto/dev.log']);
 
 	const child = await ensureDevServer(cwd, config);
 	if (child) trackGroup('project', child.pid);
@@ -91,6 +101,66 @@ export async function runDev(cwd) {
 	process.on('SIGINT', shutdown);
 	process.on('SIGTERM', shutdown);
 	process.on('SIGHUP', shutdown);
+}
+
+const DETACH_READY_TIMEOUT_MS = 90_000; // dev server (60s budget) + gateway register
+
+/**
+ * `krafto dev --detach` — respawn this CLI as a background daemon and wait
+ * until it reports the gateway is connected. The daemon's stdout/stderr go to
+ * .krafto/dev.log; its pid lands in daemon.json (written by the child itself
+ * via initDaemonState), which `krafto status` / `krafto stop` read.
+ */
+async function runDetached(cwd) {
+	const existing = readDaemonState(cwd);
+	if (existing?.pid && isPidAlive(existing.pid)) {
+		info(`agent is already running (pid ${existing.pid}) — \`npx krafto stop\` first`);
+		return;
+	}
+
+	const logPath = join(cwd, '.krafto', 'dev.log');
+	const log = openSync(logPath, 'a');
+	const entry = join(dirname(fileURLToPath(import.meta.url)), '..', 'index.js');
+	const child = spawn(process.execPath, [entry, 'dev'], {
+		cwd,
+		detached: true,
+		stdio: ['ignore', log, log],
+		env: process.env
+	});
+	child.unref();
+
+	info('starting the agent in the background…');
+	step(`logs: ${logPath}`);
+
+	// The child owns daemon.json: it appears with the child's pid once the
+	// orphan reap is done, and gateway flips to 'online' after `registered`.
+	const deadline = Date.now() + DETACH_READY_TIMEOUT_MS;
+	while (Date.now() < deadline) {
+		const state = readDaemonState(cwd);
+		if (state?.pid === child.pid && state.gateway === 'online') {
+			info(`agent is online (pid ${child.pid}) — open the editor from your dashboard`);
+			step('stop it with: npx krafto stop');
+			return;
+		}
+		// A clean daemon exit removes daemon.json, so a dead pid here = startup failed.
+		if (!isPidAlive(child.pid)) break;
+		await sleep(500);
+	}
+	error(`agent failed to start — last lines of ${logPath}:`);
+	try {
+		const tail = readFileSync(logPath, 'utf8').trimEnd().split('\n').slice(-15);
+		for (const line of tail) step(line);
+	} catch {
+		/* no log to show */
+	}
+	if (isPidAlive(child.pid)) {
+		try {
+			process.kill(child.pid, 'SIGTERM');
+		} catch {
+			/* already gone */
+		}
+	}
+	process.exit(1);
 }
 
 /** Attach to a dev server already on devPort, otherwise spawn `<pm> run dev`. */
@@ -155,6 +225,7 @@ function connect(cwd, config, token) {
 				info(
 					`agent online — proxying http://localhost:${config.devPort}. Open the editor from your dashboard.`
 				);
+				setGatewayState('online'); // `krafto status` / --detach readiness read this
 				return;
 			case 'session_ensure':
 				return void sessions.ensure(msg);
