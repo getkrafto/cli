@@ -29,6 +29,7 @@ import {
 } from '../daemonState.js';
 import { applyEdit } from '../edits.js';
 import { handleChangesRequest, handlePublish } from '../publish.js';
+import { handleRoutesRequest } from '../routes.js';
 import { createSessionManager, killTree } from '../sessions.js';
 import { error, info, step } from '../ui.js';
 import * as util from '../util.js';
@@ -271,6 +272,9 @@ function connect(cwd, config, token) {
 				return void handleChangesRequest(cwd, send, msg);
 			case 'publish':
 				return void handlePublish(cwd, send, msg);
+			// Reads the session worktree when one exists, the main checkout otherwise.
+			case 'routes_request':
+				return void handleRoutesRequest(cwd, config, sessions, send, msg);
 			default:
 				return;
 		}
