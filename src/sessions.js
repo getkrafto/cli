@@ -48,7 +48,12 @@ export function createSessionManager({ cwd, config, send }) {
 		status(sessionId, { status: 'starting' });
 
 		try {
-			const { dir, baseCommit } = ensureWorktree(sessionId, branch, msg.baseCommit ?? null);
+			const { dir, baseCommit } = ensureWorktree(
+				sessionId,
+				branch,
+				msg.baseCommit ?? null,
+				msg.forkFromBranch ?? null
+			);
 			entry.dir = dir;
 			ensureNodeModules(dir);
 			copyEnvFiles(dir);
@@ -82,7 +87,7 @@ export function createSessionManager({ cwd, config, send }) {
 	 * only when the branch was created right now — that is what the session was
 	 * actually forked from, and the gateway records it.
 	 */
-	function ensureWorktree(sessionId, branch, requestedBase) {
+	function ensureWorktree(sessionId, branch, requestedBase, forkFromBranch) {
 		if (!util.isGitRepo(cwd)) throw new Error('not a git repository — sessions need git');
 		excludeWorktreesFromGit();
 		git(['worktree', 'prune']); // drop stale registrations (deleted dirs)
@@ -96,7 +101,12 @@ export function createSessionManager({ cwd, config, send }) {
 			git(['worktree', 'add', dir, branch]);
 			return { dir, baseCommit: null };
 		}
-		const base = requestedBase || git(['rev-parse', 'HEAD']);
+		// Fork point: explicit > parent session's branch head (fork) > project HEAD.
+		const base =
+			requestedBase ||
+			(forkFromBranch && branchExists(forkFromBranch)
+				? git(['rev-parse', forkFromBranch])
+				: git(['rev-parse', 'HEAD']));
 		git(['worktree', 'add', '-b', branch, dir, base]);
 		return { dir, baseCommit: base };
 	}
