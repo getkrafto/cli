@@ -35,6 +35,13 @@ export function createSessionManager({ cwd, config, send }) {
 
 	function reapIdle() {
 		const now = Date.now();
+		if (process.env.KRAFTO_DEBUG) {
+			for (const [id, e] of entries) {
+				console.error(
+					`[krafto debug] session ${id}: status=${e.status} channels=${e.channels} idleMs=${now - e.lastUsed}`
+				);
+			}
+		}
 		for (const [sessionId, entry] of entries) {
 			if (entry.status !== 'ready') continue; // never touch starting ones
 			if (entry.channels > 0) continue; // an open tunnel = an iframe is watching
@@ -44,6 +51,9 @@ export function createSessionManager({ cwd, config, send }) {
 			if (entry.child) killTree(entry.child);
 			untrackGroup(sessionId);
 			step(`session ${sessionId} idle — dev server stopped (reopens on next editor visit)`);
+			// Editors with the page still open learn the session paused and can
+			// revive it (the next edit or editor connect re-ensures).
+			status(sessionId, { status: 'stopped' });
 		}
 	}
 
@@ -56,6 +66,9 @@ export function createSessionManager({ cwd, config, send }) {
 	/** Open WS tunnels (HMR etc.) pin the session as active while the iframe lives. */
 	function channelOpened(sessionId) {
 		const entry = entries.get(sessionId);
+		if (process.env.KRAFTO_DEBUG) {
+			console.error(`[krafto debug] channelOpened ${sessionId} → ${entry ? entry.channels + 1 : 'no entry'}`);
+		}
 		if (!entry) return;
 		entry.channels++;
 		entry.lastUsed = Date.now();
@@ -63,6 +76,9 @@ export function createSessionManager({ cwd, config, send }) {
 
 	function channelClosed(sessionId) {
 		const entry = entries.get(sessionId);
+		if (process.env.KRAFTO_DEBUG) {
+			console.error(`[krafto debug] channelClosed ${sessionId} → ${entry ? entry.channels - 1 : 'no entry'}`);
+		}
 		if (!entry) return;
 		entry.channels = Math.max(0, entry.channels - 1);
 		entry.lastUsed = Date.now(); // grace period starts when the last tab leaves
@@ -261,6 +277,26 @@ export function createSessionManager({ cwd, config, send }) {
 		return entry && entry.status !== 'error' ? entry.dir : null;
 	}
 
+	/**
+	 * Worktree of a session that is not currently running (idle-reaped or
+	 * daemon restarted). Edits can be applied there directly — the worktree
+	 * and branch outlive the dev server by design.
+	 */
+	function dormantDirFor(sessionId) {
+		const dir = join(cwd, '.krafto', 'worktrees', sessionId);
+		return existsSync(join(dir, '.git')) ? dir : null;
+	}
+
+	/** Bring a reaped session back. Branch name is the krafto/<id> convention. */
+	function revive(sessionId) {
+		void ensure({
+			type: 'session_ensure',
+			sessionId,
+			branch: `krafto/${sessionId}`,
+			baseCommit: null
+		});
+	}
+
 	function shutdown() {
 		clearInterval(reaper);
 		for (const entry of entries.values()) {
@@ -270,7 +306,17 @@ export function createSessionManager({ cwd, config, send }) {
 		entries.clear();
 	}
 
-	return { ensure, portFor, dirFor, touch, channelOpened, channelClosed, shutdown };
+	return {
+		ensure,
+		portFor,
+		dirFor,
+		dormantDirFor,
+		revive,
+		touch,
+		channelOpened,
+		channelClosed,
+		shutdown
+	};
 }
 
 /** Kill the dev server's whole process group, not just the `<pm> run` wrapper. */

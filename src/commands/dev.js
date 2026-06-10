@@ -215,8 +215,16 @@ function connect(cwd, config, token) {
 async function handleEdit(send, sessions, msg) {
 	const ack = (payload) =>
 		send({ type: 'edit_ack', editId: msg.editId, sessionId: msg.sessionId, ...payload });
-	const dir = msg.sessionId ? sessions.dirFor(msg.sessionId) : null;
-	if (!dir) return ack({ ok: false, error: 'session is not running on the agent' });
+	if (!msg.sessionId) return ack({ ok: false, error: 'session is not running on the agent' });
+	let dir = sessions.dirFor(msg.sessionId);
+	if (!dir) {
+		// Idle-reaped (or daemon restarted) session: the worktree outlives the
+		// dev server — apply the edit there and bring the server back, so an
+		// editor left open over lunch still works on the next Apply.
+		dir = sessions.dormantDirFor(msg.sessionId);
+		if (!dir) return ack({ ok: false, error: 'session is not running on the agent' });
+		sessions.revive(msg.sessionId);
+	}
 	sessions.touch(msg.sessionId);
 	try {
 		const result = await applyEdit(dir, msg);
